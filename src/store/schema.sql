@@ -1,0 +1,2 @@
+-- Database schema for MessageGateway
+-- Migrations go here
