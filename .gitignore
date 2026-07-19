@@ -3,4 +3,7 @@ dist/
 .env
 *.sqlite
 *.sqlite-wal
-*.sqlite-shm\n
+*.sqlite-shm
+
+# Ignore personal knowledge docs
+KNOWLEDGE.md
