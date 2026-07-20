@@ -3,13 +3,14 @@
 This document contains actual output captured from running the Gateway and Mock servers. It demonstrates the core paths, failure modes, and resiliency mechanics.
 
 ## Prerequisites
-Start both servers in separate terminal sessions before executing these commands:
+Start both servers in separate terminal sessions before executing these commands. It's crucial to delete the SQLite database first so the database is clean, allowing provider IDs (`nx_1`, `ob_1`) to match the expectations of these commands.
 
 ```bash
-# Terminal 1 - Gateway
+# Terminal 1 - Wipe database and start Gateway
+rm -f data.sqlite*
 npm run dev
 
-# Terminal 2 - Mocks
+# Terminal 2 - Start Mocks
 npm run mocks
 ```
 
