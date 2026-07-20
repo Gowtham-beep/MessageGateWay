@@ -1,7 +1,11 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { pollPending } from '../poller/index.js';
 
 export const dlrRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   fastify.post('/v1/dlr/poll', async (request, reply) => {
-    return reply.status(501).send({ error: 'Not implemented' });
+    const body = request.body as any;
+    const limit = body && typeof body.limit === 'number' ? body.limit : 50;
+    const result = await pollPending({ limit });
+    return reply.status(200).send(result);
   });
 };

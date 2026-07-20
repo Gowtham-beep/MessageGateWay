@@ -11,6 +11,8 @@ const envSchema = z.object({
   PROVIDER_BASE_URL: z.string().default('http://localhost:4000'),
   MOCK_TIMEOUT_MS: z.coerce.number().default(5000),
   NEXUS_TIMEOUT_MS: z.coerce.number().default(2000),
+  WEBHOOK_TOLERANCE_SEC: z.coerce.number().default(300),
+  POLL_INTERVAL_MS: z.coerce.number().default(0),
 });
 
 export const env = envSchema.parse(process.env);
