@@ -1,12 +1,21 @@
-/**
- * Exponential backoff with jitter
- * @param attempt Current attempt number (starts at 1)
- * @param baseDelay Base delay in ms
- * @param maxDelay Maximum delay in ms
- * @returns Delay in ms
- */
+interface BackoffOpts {
+  baseMs?: number;
+  maxMs?: number;
+  jitter?: 'full' | 'none';
+}
+
+export function computeDelay(attempt: number, opts: BackoffOpts = {}): number {
+  const baseMs = opts.baseMs ?? 100;
+  const maxMs = opts.maxMs ?? 2000;
+  const useJitter = opts.jitter === 'full';
+  
+  let backoff = Math.min(maxMs, baseMs * Math.pow(2, attempt - 1));
+  if (useJitter) {
+    backoff = Math.random() * backoff;
+  }
+  return backoff;
+}
+
 export function calculateBackoff(attempt: number, baseDelay: number = 100, maxDelay: number = 30000): number {
-  const backoff = Math.min(maxDelay, baseDelay * Math.pow(2, attempt - 1));
-  const jitter = Math.random() * (backoff * 0.2); // 20% jitter
-  return backoff + jitter;
+  return computeDelay(attempt, { baseMs: baseDelay, maxMs: maxDelay, jitter: 'full' });
 }
