@@ -35,6 +35,20 @@ What this gateway does instead is make it **detectable and non-corrupting**:
 
 Acknowledging this limitation honestly in system design reads far better than pretending it is a solved problem.
 
+## Inbound Delivery Tracking
+The system handles asynchronous updates from upstream providers using two distinct architectures:
+
+### 1. Webhook Ingestion (Push)
+Providers like Nexus push status updates via webhooks. To ensure maximum security:
+- **Raw Body Parsing**: We use a custom Fastify content-type parser to capture the exact raw byte string of the request before JSON parsing. This ensures our `HMAC-SHA256` signature verification mathematically matches what the provider generated.
+- **Replay Protection**: We enforce a strict `WEBHOOK_TOLERANCE_SEC` window (default 5 minutes). If a stale webhook is received, it is immediately rejected to prevent replay attacks.
+- **Deduplication**: Every incoming `event_id` is recorded in SQLite. If a provider aggressively retries a webhook we've already processed, the Gateway silently drops it and returns a `200 OK` to stop the retry loop.
+
+### 2. Status Polling (Pull)
+Providers like Orbit do not support webhooks, requiring the Gateway to actively pull statuses.
+- **Fault-Tolerant Iteration**: A background worker fetches up to 50 pending messages and checks their status. If one network request to Orbit fails or times out, the worker traps the error, logs it, and continues polling the rest of the batch without crashing.
+- **Deterministic Testing via Manual Triggers**: While the background poller runs on a `setInterval` loop in production, it is explicitly disabled (`POLL_INTERVAL_MS=0`) during tests to prevent "thundering herd" race conditions. Instead, tests invoke a manual API endpoint (`POST /v1/dlr/poll`) to crank the poller synchronously on-demand.
+
 ## Testing & Mocking Philosophy
 
 **Deterministic, Programmable Mocks**
