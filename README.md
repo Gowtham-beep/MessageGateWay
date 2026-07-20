@@ -52,6 +52,25 @@ The comprehensive test suite (which includes tests covering concurrency, idempot
 npm run test
 ```
 
+## API Endpoints
+
+### 1. `GET /health`
+Returns a 200 OK indicating the server is running.
+
+### 2. `POST /v1/messages`
+Ingests a new message.
+*   **Body**: `{"client_ref": "...", "sender_id": "...", "channel": "sms", "destination": "...", "text": "..."}`
+*   **Response**: `202 Accepted` (Returns the current message state)
+
+### 3. `GET /v1/messages/:clientRef`
+Retrieves the message state and full audit trail (`events` array).
+
+### 4. `POST /v1/webhooks/nexus`
+Receives delivery receipts from Nexus. Authenticated via `x-nexus-signature`.
+
+### 5. `POST /v1/dlr/poll`
+Manually triggers the background poller to fetch pending Orbit delivery receipts.
+
 ## Documentation
 *   [docs/DESIGN.md](./docs/DESIGN.md): Details the core state machine, idempotency guarantees, failover rules, and testing strategies.
 *   [docs/CURL.md](./docs/CURL.md): Provides copy-paste `curl` snippets to test integration across running servers.
