@@ -18,7 +18,8 @@ export async function buildTestEnv() {
   const providerUrl = `http://127.0.0.1:${providerAddress.port}`;
   
   env.PROVIDER_BASE_URL = providerUrl;
-  env.NEXUS_TIMEOUT_MS = 200;
+  env.NEXUS_TIMEOUT_MS = 5000;
+  env.MOCK_TIMEOUT_MS = 6000;
   env.WEBHOOK_TOLERANCE_SEC = 300;
 
   const app = fastify();

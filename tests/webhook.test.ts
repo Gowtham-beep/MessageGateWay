@@ -32,6 +32,7 @@ describe('Webhooks', () => {
   it('23. Valid signed DLR delivered -> DELIVERED, event row recorded', async () => {
     const res = await postMessage(env.app, { sender_id: 'NEXUS01' });
     const { client_ref, provider_message_id } = res.json();
+    expect(provider_message_id).toBeTruthy();
     
     const hookRes = await fireWebhook({
       event_id: 'evt_1', provider_message_id, client_ref, status: 'delivered', timestamp: Date.now()
