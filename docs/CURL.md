@@ -24,7 +24,7 @@ curl -s -X POST http://localhost:3000/v1/messages -H "Content-Type: application/
 ```
 **Response:**
 ```json
-{"client_ref":"curl-nex-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T03:21:40.767Z","updated_at":"2026-07-20T03:21:40.817Z"}
+{"client_ref":"curl-nex-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T04:48:29.892Z","updated_at":"2026-07-20T04:48:29.950Z"}
 ```
 
 ### 2. GET the lifecycle for that client_ref
@@ -34,7 +34,7 @@ curl -s http://localhost:3000/v1/messages/curl-nex-1
 ```
 **Response:**
 ```json
-{"client_ref":"curl-nex-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T03:21:40.767Z","updated_at":"2026-07-20T03:21:40.817Z","events":[{"id":1,"client_ref":"curl-nex-1","from_status":"ACCEPTED","to_status":"SUBMITTED","provider":"nexus","raw_status":"accepted","detail":null,"created_at":"2026-07-20T03:21:40.817Z"}]}
+{"client_ref":"curl-nex-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T04:48:29.892Z","updated_at":"2026-07-20T04:48:29.950Z","events":[{"id":1,"client_ref":"curl-nex-1","from_status":"ACCEPTED","to_status":"SUBMITTED","provider":"nexus","raw_status":"accepted","detail":null,"created_at":"2026-07-20T04:48:29.950Z"}]}
 ```
 
 ### 3. Fire a Nexus DLR via mock control -> GET
@@ -48,7 +48,7 @@ curl -s http://localhost:3000/v1/messages/curl-nex-1
 ```json
 {"gateway_status":200}
 
-{"client_ref":"curl-nex-1","sender_id":"NEXUS01","destination":"+1234567890","status":"DELIVERED","provider":"nexus","provider_message_id":"nx_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T03:21:40.767Z","updated_at":"2026-07-20T03:21:40.885Z","events":[{"id":1,"client_ref":"curl-nex-1","from_status":"ACCEPTED","to_status":"SUBMITTED","provider":"nexus","raw_status":"accepted","detail":null,"created_at":"2026-07-20T03:21:40.817Z"},{"id":2,"client_ref":"curl-nex-1","from_status":"SUBMITTED","to_status":"DELIVERED","provider":"nexus","raw_status":"delivered","detail":null,"created_at":"2026-07-20T03:21:40.885Z"}]}
+{"client_ref":"curl-nex-1","sender_id":"NEXUS01","destination":"+1234567890","status":"DELIVERED","provider":"nexus","provider_message_id":"nx_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T04:48:29.892Z","updated_at":"2026-07-20T04:48:30.025Z","events":[{"id":1,"client_ref":"curl-nex-1","from_status":"ACCEPTED","to_status":"SUBMITTED","provider":"nexus","raw_status":"accepted","detail":null,"created_at":"2026-07-20T04:48:29.950Z"},{"id":2,"client_ref":"curl-nex-1","from_status":"SUBMITTED","to_status":"DELIVERED","provider":"nexus","raw_status":"delivered","detail":null,"created_at":"2026-07-20T04:48:30.025Z"}]}
 ```
 
 ### 4. Send via ORBIT01
@@ -60,7 +60,7 @@ curl -s -X POST http://localhost:3000/v1/messages -H "Content-Type: application/
 ```
 **Response:**
 ```json
-{"client_ref":"curl-orb-1","sender_id":"ORBIT01","destination":"+1234567890","status":"SUBMITTED","provider":"orbit","provider_message_id":"ob_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T03:21:40.927Z","updated_at":"2026-07-20T03:21:40.935Z"}
+{"client_ref":"curl-orb-1","sender_id":"ORBIT01","destination":"+1234567890","status":"SUBMITTED","provider":"orbit","provider_message_id":"ob_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T04:48:30.050Z","updated_at":"2026-07-20T04:48:30.053Z"}
 ```
 
 ### 5. Three successive POST /v1/dlr/poll calls -> GET
@@ -78,7 +78,7 @@ curl -s http://localhost:3000/v1/messages/curl-orb-1
 {"polled":1,"updated":1,"unchanged":0,"errors":0,"results":[{"client_ref":"curl-orb-1","raw_status":"sending","status":"SENT","applied":true}]}
 {"polled":1,"updated":1,"unchanged":0,"errors":0,"results":[{"client_ref":"curl-orb-1","raw_status":"delivered","status":"DELIVERED","applied":true}]}
 
-{"client_ref":"curl-orb-1","sender_id":"ORBIT01","destination":"+1234567890","status":"DELIVERED","provider":"orbit","provider_message_id":"ob_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T03:21:40.927Z","updated_at":"2026-07-20T03:21:40.999Z","events":[{"id":3,"client_ref":"curl-orb-1","from_status":"ACCEPTED","to_status":"SUBMITTED","provider":"orbit","raw_status":"queued","detail":null,"created_at":"2026-07-20T03:21:40.935Z"},{"id":4,"client_ref":"curl-orb-1","from_status":"SUBMITTED","to_status":"SENT","provider":"orbit","raw_status":"sending","detail":null,"created_at":"2026-07-20T03:21:40.977Z"},{"id":5,"client_ref":"curl-orb-1","from_status":"SENT","to_status":"DELIVERED","provider":"orbit","raw_status":"delivered","detail":null,"created_at":"2026-07-20T03:21:40.999Z"}]}
+{"client_ref":"curl-orb-1","sender_id":"ORBIT01","destination":"+1234567890","status":"DELIVERED","provider":"orbit","provider_message_id":"ob_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T04:48:30.050Z","updated_at":"2026-07-20T04:48:30.082Z","events":[{"id":3,"client_ref":"curl-orb-1","from_status":"ACCEPTED","to_status":"SUBMITTED","provider":"orbit","raw_status":"queued","detail":null,"created_at":"2026-07-20T04:48:30.053Z"},{"id":4,"client_ref":"curl-orb-1","from_status":"SUBMITTED","to_status":"SENT","provider":"orbit","raw_status":"sending","detail":null,"created_at":"2026-07-20T04:48:30.071Z"},{"id":5,"client_ref":"curl-orb-1","from_status":"SENT","to_status":"DELIVERED","provider":"orbit","raw_status":"delivered","detail":null,"created_at":"2026-07-20T04:48:30.082Z"}]}
 ```
 
 ---
@@ -128,9 +128,9 @@ curl -s -X POST http://localhost:3000/v1/messages -H "Content-Type: application/
 ```
 **Response:**
 ```json
-{"client_ref":"curl-dup-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T03:21:41.151Z","updated_at":"2026-07-20T03:21:41.155Z"}
+{"client_ref":"curl-dup-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T04:48:30.140Z","updated_at":"2026-07-20T04:48:30.143Z"}
 
-{"client_ref":"curl-dup-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T03:21:41.151Z","updated_at":"2026-07-20T03:21:41.155Z"}
+{"client_ref":"curl-dup-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T04:48:30.140Z","updated_at":"2026-07-20T04:48:30.143Z"}
 ```
 
 ### 10. Same client_ref with a different destination
@@ -155,9 +155,11 @@ curl -s http://localhost:3000/v1/messages/curl-rl-1
 ```
 **Response:**
 ```json
-{"client_ref":"curl-rl-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":3,"failover_used":0,"last_error":null,"created_at":"2026-07-20T03:21:41.237Z","updated_at":"2026-07-20T03:21:41.404Z"}
+{"ok":true}
 
-{"client_ref":"curl-rl-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":3,"failover_used":0,"last_error":null,"created_at":"2026-07-20T03:21:41.237Z","updated_at":"2026-07-20T03:21:41.404Z","events":[{"id":7,"client_ref":"curl-rl-1","from_status":"ACCEPTED","to_status":"SUBMITTED","provider":"nexus","raw_status":"accepted","detail":null,"created_at":"2026-07-20T03:21:41.404Z"}]}
+{"client_ref":"curl-rl-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":3,"failover_used":0,"last_error":null,"created_at":"2026-07-20T04:48:30.176Z","updated_at":"2026-07-20T04:48:30.394Z"}
+
+{"client_ref":"curl-rl-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":3,"failover_used":0,"last_error":null,"created_at":"2026-07-20T04:48:30.176Z","updated_at":"2026-07-20T04:48:30.394Z","events":[{"id":7,"client_ref":"curl-rl-1","from_status":"ACCEPTED","to_status":"SUBMITTED","provider":"nexus","raw_status":"accepted","detail":null,"created_at":"2026-07-20T04:48:30.394Z"}]}
 ```
 
 ### 12. Script nexus server_error, send via AUTO01 -> GET
@@ -172,7 +174,11 @@ curl -s http://localhost:3000/v1/messages/curl-auto-1
 ```
 **Response:**
 ```json
-{"client_ref":"curl-auto-1","sender_id":"AUTO01","destination":"+1234567890","status":"SUBMITTED","provider":"orbit","provider_message_id":"ob_1","attempts":2,"failover_used":1,"last_error":null,"created_at":"2026-07-20T03:21:41.460Z","updated_at":"2026-07-20T03:21:41.474Z"}
+{"ok":true}
+
+{"client_ref":"curl-auto-1","sender_id":"AUTO01","destination":"+1234567890","status":"SUBMITTED","provider":"orbit","provider_message_id":"ob_1","attempts":2,"failover_used":1,"last_error":null,"created_at":"2026-07-20T04:48:30.453Z","updated_at":"2026-07-20T04:48:30.459Z"}
+
+{"client_ref":"curl-auto-1","sender_id":"AUTO01","destination":"+1234567890","status":"SUBMITTED","provider":"orbit","provider_message_id":"ob_1","attempts":2,"failover_used":1,"last_error":null,"created_at":"2026-07-20T04:48:30.453Z","updated_at":"2026-07-20T04:48:30.459Z","events":[{"id":8,"client_ref":"curl-auto-1","from_status":"ACCEPTED","to_status":"ACCEPTED","provider":"nexus","raw_status":null,"detail":"failover: nexus server_error -> orbit","created_at":"2026-07-20T04:48:30.456Z"},{"id":9,"client_ref":"curl-auto-1","from_status":"ACCEPTED","to_status":"SUBMITTED","provider":"orbit","raw_status":"queued","detail":null,"created_at":"2026-07-20T04:48:30.459Z"}]}
 ```
 
 ### 13. Fire the identical Nexus DLR twice
@@ -187,16 +193,29 @@ curl -s -X POST http://localhost:4000/nexus/__control/fire-dlr -H "Content-Type:
 ```
 **Response:**
 ```json
+{"client_ref":"curl-dlr-1","sender_id":"NEXUS01","destination":"+1234567890","status":"SUBMITTED","provider":"nexus","provider_message_id":"nx_1","attempts":1,"failover_used":0,"last_error":null,"created_at":"2026-07-20T04:48:30.480Z","updated_at":"2026-07-20T04:48:30.482Z"}
+
 {"gateway_status":200}
-{"gateway_status":200,"duplicate":true}
+{"gateway_status":200}
 ```
 
-### 14. Tampered webhook body
-Demonstrates webhook signature verification protecting endpoints.
+### 14a. Missing signature
+Demonstrates webhook endpoint protecting against unsigned payloads.
 ```bash
-curl -s -X POST http://localhost:3000/v1/webhooks/nexus -H "Content-Type: application/json" -H "x-nexus-signature: bogus" -d '{"messageId":"nx_1","status":"delivered"}'
+curl -s -X POST http://localhost:3000/webhooks/nexus/status -H "Content-Type: application/json" -d '{"event_id":"evt_1","provider_message_id":"nx_1","client_ref":"curl-sig-1","status":"delivered"}'
 ```
 **Response:**
 ```json
-{"error":{"code":"INVALID_SIGNATURE","message":"Invalid webhook signature"}}
+{"error":{"code":"MISSING_SIGNATURE"}}
+```
+
+### 14b. Tampered body
+Demonstrates webhook signature verification failing on a corrupted signature.
+```bash
+# Simulating a manually tampered request using a legitimate timestamp
+curl -s -X POST http://localhost:3000/webhooks/nexus/status -H "Content-Type: application/json" -H "x-nexus-timestamp: 1721450910547" -H "x-nexus-signature: bogus_signature" -d '{"event_id":"nx_1:delivered","provider_message_id":"nx_1","client_ref":"curl-sig-1","status":"delivered","timestamp":"1721450910547"}'
+```
+**Response:**
+```json
+{"error":{"code":"INVALID_SIGNATURE"}}
 ```

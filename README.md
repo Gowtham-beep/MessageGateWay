@@ -65,7 +65,7 @@ Ingests a new message.
 ### 3. `GET /v1/messages/:clientRef`
 Retrieves the message state and full audit trail (`events` array).
 
-### 4. `POST /v1/webhooks/nexus`
+### 4. `POST /webhooks/nexus/status`
 Receives delivery receipts from Nexus. Authenticated via `x-nexus-signature`.
 
 ### 5. `POST /v1/dlr/poll`
