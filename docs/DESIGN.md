@@ -1,59 +1,35 @@
-# Design
+# Message Gateway Design
 
-## Architecture
-MessageGateway is a robust, asynchronous message delivery system designed in Node.js (v20) using TypeScript. It leverages **Fastify** for high-performance HTTP routing and **better-sqlite3** for a synchronous, low-overhead embedded database. 
+## 1. Routing Table
+Sender IDs strictly map to providers, authentication mechanisms, and delivery tracking modes via `config/senders.ts`. Unknown Sender IDs are rejected at the API boundary.
+*   **NEXUS01 / NEXUS02**: `nexus` provider -> Token Auth -> Webhooks
+*   **ORBIT01**: `orbit` provider -> API Key Auth -> Polling
+*   **AUTO01**: `auto` route -> `nexus` primary, `orbit` fallback -> Token Auth -> Webhooks/Polling
 
-The core architecture handles message ingestion and delivery synchronously:
-1. **Ingestion & Inline Delivery**: The API accepts messages (`POST /v1/messages`), validates them using Zod, and safely saves them to the database in an `ACCEPTED` state. Instead of placing the message into a background queue (like BullMQ/Redis), **sending happens synchronously inline within the request handler**. The handler actively awaits the initial provider dispatch and returns the resulting state to the client immediately.
-   * **Design Tradeoff**: While adding a dedicated queue worker (e.g., Redis + BullMQ) would drastically increase peak throughput and prevent slow provider APIs from tying up HTTP request threads, it adds significant operational complexity and async test coordination. For this implementation's scope, synchronous inline sending allows us to perfectly guarantee correctness without infrastructure bloat. In a true production environment with massive scale, this would be moved to an asynchronous queue.
-2. **Safety Mechanics**: Even though sending happens inline, we still utilize an atomic Compare-and-Swap (CAS) SQL query (`UPDATE messages SET send_claimed = 1 WHERE ... AND send_claimed = 0`) to claim the message before sending. This guarantees that if a network timeout causes a client to aggressively retry the request concurrently, we will absolutely never execute a double-send.
-3. **Webhooks & Status Updates**: Provider Delivery Receipts (DLRs) are received asynchronously, securely validated via HMAC signatures (where applicable), deduplicated, and then used to safely advance the message state machine.
+## 2. State Machine
+Messages follow a monotonic lifecycle: `ACCEPTED (0) -> SUBMITTED (1) -> SENT (2) -> DELIVERED (3) | FAILED (3)`.
+*   **Rules**: Transitions only progress forward or to the same rank if the status string matches. `DELIVERED` and `FAILED` are strictly terminal. Every applied transition appends an immutable row to `message_events`.
+*   **Nexus Mapping**: `accepted` -> `SUBMITTED`, `sent` -> `SENT`, `delivered` -> `DELIVERED`, `undelivered` / `expired` -> `FAILED`.
+*   **Orbit Mapping**: `queued` -> `SUBMITTED`, `sending` -> `SENT`, `delivered` -> `DELIVERED`, `failed` / `rejected` -> `FAILED`.
+*   Unknown raw provider statuses are explicitly logged and ignored. We never guess state.
 
-## Data Model
-Our storage layer is strictly transactional and idempotent, using SQLite in **WAL (Write-Ahead Logging)** mode for high read/write concurrency.
+## 3. Idempotency and Single-Send
+*   **Ingestion**: `UNIQUE(client_ref)` enforced by SQLite `INSERT ON CONFLICT DO NOTHING`. If a duplicate request provides a conflicting payload, a `409` is returned.
+*   **Dispatch**: A Compare-And-Swap (CAS) on `send_claimed` ensures exactly one concurrent caller executes the downstream provider request. Duplicate callers enter a wait loop (capped at `DISPATCH_WAIT_MS`) and return the current state safely.
+*   **Webhooks**: Deduplication is guaranteed by a `UNIQUE(provider, provider_event_id)` constraint in the `events` table. Duplicates silently return HTTP `200` to satisfy the provider without re-applying state.
 
-- **`messages`**: The source of truth for the current state of a message. It enforces idempotency on ingestion via a unique `client_ref` constraint. Status transitions (`ACCEPTED` -> `SUBMITTED` -> `SENT` -> `DELIVERED` / `FAILED`) are governed by a strictly ranked state machine that permanently locks upon reaching a terminal state and rejects backward transitions.
-- **`message_events`**: An append-only audit log. Every successful state transition automatically inserts a row here within the exact same database transaction, providing a perfect historical timeline for debugging and support.
-- **`webhook_events`**: A deduplication guard table. It stores unique provider event IDs (using `INSERT OR IGNORE`) to ensure that retried or duplicated webhooks from external networks are processed exactly once.
+## 4. Retries and Failover
+*   **Retries**: HTTP `429 Rate Limited` triggers up to 3 attempts on the *same* provider using exponential backoff with full jitter. Rate limiting is *never* a failover trigger.
+*   **Failover**: HTTP 5xx or Timeouts are strictly not retried on the same provider. For the `AUTO01` sender only, this triggers a single fallback send to Orbit, guarded by `failover_used = 1`. `NEXUS01` and `NEXUS02` never fail over.
+*   **Audit**: Failovers are explicitly recorded in `message_events` (e.g., `detail: "failover: nexus server_error -> orbit"`), ensuring the primary failure is visible in the audit trail without breaking the monotonic state sequence.
 
-## Providers
-The gateway abstracts away the complexities of disparate upstream networks. Currently mocked providers include:
-- **Nexus**: Represents an HTTP provider that requires Bearer token authentication. It pushes delivery receipts asynchronously via webhooks, which requires robust HMAC signature verification on our end to prevent spoofing.
-- **Orbit**: Represents a polling-based provider requiring API key authentication (`x-api-key`). It returns an immediate `202 Queued` response, requiring the gateway to actively poll a status endpoint to retrieve final delivery states.
+## 5. Known Limitations
+*   **Ambiguous Timeouts**: A Nexus timeout is ambiguous—the downstream send may have successfully reached the carrier. Consequently, failing over to Orbit cannot mathematically guarantee the prevention of a duplicate SMS to the end user. A late Nexus DLR arriving for a message already marked terminal (via the Orbit failover) is safely dropped by the terminal guard and visible in the audit trail.
+*   **Inline Dispatch**: Outbound sending is performed synchronously inline with the HTTP request. A robust queue/worker architecture would be the proper production choice to decouple ingestion from outbound latency.
+*   **Scaling Limit**: Single-node SQLite correctly enforces the CAS claim across multi-process deployments sharing the same block storage, but throughput is ultimately bounded by file locks.
 
-To gracefully handle provider unreliability, the gateway utilizes **exponential backoff with jitter** for API retries, safely isolating internal systems from upstream rate limits and temporary outages.
-
-### Failover & The Timeout Ambiguity
-When a network request to a primary provider (like Nexus) **times out**, the situation is genuinely ambiguous. The request may have failed before reaching Nexus, or Nexus may have received it, successfully sent the SMS, and the connection dropped while they were responding.
-
-If the gateway initiates a failover to Orbit after a timeout, the user might receive the SMS twice. **This is an unavoidable reality of distributed systems. Nobody can perfectly prevent a double-send in this scenario.** 
-
-What this gateway does instead is make it **detectable and non-corrupting**:
-1. It marks the database row when a failover is used (`failover_used = 1`).
-2. If a delayed "ghost" Nexus Delivery Receipt (DLR) eventually arrives hours later, the state machine's **terminal guard** activates. Because Orbit already pushed the message into a terminal state, the late Nexus webhook is safely dropped. 
-3. The `message_events` audit trail successfully records the late webhook arrival, providing full observability without corrupting the final state.
-
-Acknowledging this limitation honestly in system design reads far better than pretending it is a solved problem.
-
-## Inbound Delivery Tracking
-The system handles asynchronous updates from upstream providers using two distinct architectures:
-
-### 1. Webhook Ingestion (Push)
-Providers like Nexus push status updates via webhooks. To ensure maximum security:
-- **Raw Body Parsing**: We use a custom Fastify content-type parser to capture the exact raw byte string of the request before JSON parsing. This ensures our `HMAC-SHA256` signature verification mathematically matches what the provider generated.
-- **Replay Protection**: We enforce a strict `WEBHOOK_TOLERANCE_SEC` window (default 5 minutes). If a stale webhook is received, it is immediately rejected to prevent replay attacks.
-- **Deduplication**: Every incoming `event_id` is recorded in SQLite. If a provider aggressively retries a webhook we've already processed, the Gateway silently drops it and returns a `200 OK` to stop the retry loop.
-
-### 2. Status Polling (Pull)
-Providers like Orbit do not support webhooks, requiring the Gateway to actively pull statuses.
-- **Fault-Tolerant Iteration**: A background worker fetches up to 50 pending messages and checks their status. If one network request to Orbit fails or times out, the worker traps the error, logs it, and continues polling the rest of the batch without crashing.
-- **Deterministic Testing via Manual Triggers**: While the background poller runs on a `setInterval` loop in production, it is explicitly disabled (`POLL_INTERVAL_MS=0`) during tests to prevent "thundering herd" race conditions. Instead, tests invoke a manual API endpoint (`POST /v1/dlr/poll`) to crank the poller synchronously on-demand.
-
-## Testing & Mocking Philosophy
-
-**Deterministic, Programmable Mocks**
-A critical design decision in this architecture is the implementation of our provider mocks (`src/mocks/`). We explicitly reject "randomness" or "flaky" timers in our testing environment. A mock that returns a `429 Rate Limit` "sometimes" (e.g., via `Math.random()`) leads to tests that pass on a developer's machine but fail unpredictably in CI or on a reviewer's machine. 
-
-Instead, our mock servers are entirely **programmable and deterministic**. We expose a `/__control` endpoint that allows tests to queue up exact scenarios (e.g., "return a 429, then a 503, then succeed"). Furthermore, instead of using `setTimeout` loops to simulate asynchronous Delivery Receipts (DLRs), we provide a manual webhook trigger (`/__control/fire-dlr`). This guarantees that test execution is immediate, synchronous, and perfectly reliable. 
-
-Designing mocks that are fully deterministic rather than probabilistic is a strong signal of seniority, as it guarantees CI stability and makes complex retry/backoff logic flawlessly verifiable.
+## 6. Testing
+A strict mutation testing strategy was used to verify architectural invariants:
+*   **Claim CAS Removed**: Instantly caught by the "true race on claim" concurrency test, which enforces a barrier to prove duplicate downstream requests are impossible.
+*   **Webhook Deduplication Removed**: Caught by the "duplicate event_id returns 200 without double-applying" webhook test.
+*   **Terminal Check Removed**: Terminal protection is intentionally redundant (explicit `TERMINAL` set guard plus monotonic rank ordering). Removing either alone preserves the invariant; both must be stripped before the mutation test fails.

@@ -58,15 +58,35 @@ describe('Store Layer', () => {
     expect(r2.row.status).toBe('SENT');
   });
 
-  it('applyStatus refuses any transition out of DELIVERED (terminal state)', () => {
-    insertIfAbsent(baseMsg);
+  it('d. applyStatus(ref,"DELIVERED") then applyStatus(ref,"FAILED") -> applied===false, status stays DELIVERED, no new event row', () => {
+    insertIfAbsent({ client_ref: 'ref-d', sender_id: 'AUTO01', channel: 'sms', destination: '+1', text: '1', route: 'auto' });
+    applyStatus('ref-d', 'DELIVERED');
+    const dbEvents1 = db.prepare('SELECT count(*) as c FROM message_events WHERE client_ref=?').get('ref-d') as any;
     
-    applyStatus('ref-123', 'DELIVERED');
+    const { applied } = applyStatus('ref-d', 'FAILED');
+    expect(applied).toBe(false);
+    expect(getByClientRef('ref-d')!.status).toBe('DELIVERED');
     
-    // Any status shouldn't apply
-    const r1 = applyStatus('ref-123', 'FAILED');
-    expect(r1.applied).toBe(false);
-    expect(r1.row.status).toBe('DELIVERED');
+    const dbEvents2 = db.prepare('SELECT count(*) as c FROM message_events WHERE client_ref=?').get('ref-d') as any;
+    expect(dbEvents2.c).toBe(dbEvents1.c);
+  });
+  
+  it('e. applyStatus(ref,"FAILED") then applyStatus(ref,"DELIVERED") -> applied===false, status stays FAILED', () => {
+    insertIfAbsent({ client_ref: 'ref-e', sender_id: 'AUTO01', channel: 'sms', destination: '+1', text: '1', route: 'auto' });
+    applyStatus('ref-e', 'FAILED');
+    const { applied } = applyStatus('ref-e', 'DELIVERED');
+    expect(applied).toBe(false);
+    expect(getByClientRef('ref-e')!.status).toBe('FAILED');
+  });
+
+  it('f. applyStatus(ref,"DELIVERED") twice -> second applied===false, exactly one DELIVERED event', () => {
+    insertIfAbsent({ client_ref: 'ref-f', sender_id: 'AUTO01', channel: 'sms', destination: '+1', text: '1', route: 'auto' });
+    applyStatus('ref-f', 'DELIVERED');
+    const { applied } = applyStatus('ref-f', 'DELIVERED');
+    expect(applied).toBe(false);
+    
+    const submits = db.prepare("SELECT * FROM message_events WHERE client_ref = ? AND to_status = 'DELIVERED'").all('ref-f') as any[];
+    expect(submits.length).toBe(1);
   });
 
   it('applyStatus metadata update logic without status change', () => {

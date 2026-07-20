@@ -1,5 +1,13 @@
 import { db } from './db.js';
 
+export interface RecordEventOpts {
+  fromStatus: MessageStatus;
+  toStatus: MessageStatus;
+  provider: string;
+  rawStatus: string | null;
+  detail: string;
+}
+
 export type MessageStatus = 'ACCEPTED' | 'SUBMITTED' | 'SENT' | 'DELIVERED' | 'FAILED';
 
 export interface MessageRow {
@@ -165,4 +173,17 @@ export function markFailoverUsed(clientRef: string): void {
 
 export function findPendingForPolling(provider: string, limit: number): MessageRow[] {
   return _findPendingStmt.all(provider, limit) as MessageRow[];
+}
+
+export function recordEvent(clientRef: string, opts: RecordEventOpts): void {
+  const now = new Date().toISOString();
+  _insertEventStmt.run({
+    client_ref: clientRef,
+    from_status: opts.fromStatus,
+    to_status: opts.toStatus,
+    provider: opts.provider,
+    raw_status: opts.rawStatus,
+    detail: opts.detail,
+    created_at: now
+  });
 }

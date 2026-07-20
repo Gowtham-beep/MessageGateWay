@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { env } from '../config/env.js';
-import { orbitMessages, orbitScript, getNextOrbitId } from './state.js';
+import { orbitMessages, orbitScript, getNextOrbitId, orbitQueue } from './state.js';
 
 export const orbitMockRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   fastify.post('/messages', async (request, reply) => {
@@ -12,6 +12,14 @@ export const orbitMockRoutes: FastifyPluginAsync = async (fastify: FastifyInstan
     const body = request.body as any;
     if (!body || !body.client_ref || !body.to || !body.text) {
       return reply.status(400).send({ error: 'bad_request' });
+    }
+
+    const scenario = orbitQueue.shift() || 'ok';
+    if (scenario === 'rate_limit') return reply.status(429).send({ error: 'rate_limited' });
+    if (scenario === 'server_error') return reply.status(503).send({ error: 'server_error' });
+    if (scenario === 'timeout') {
+      await new Promise(r => setTimeout(r, env.MOCK_TIMEOUT_MS));
+      return reply.status(504).send({ error: 'timeout' });
     }
 
     const id = getNextOrbitId();

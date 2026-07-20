@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { getChildLogger } from '../lib/logger.js';
-import { insertIfAbsent, getByClientRef } from '../store/messages.js';
+import { insertIfAbsent, getByClientRef, MessageRow } from '../store/messages.js';
 import { listEvents } from '../store/events.js';
 import { resolveRoute } from '../router/index.js';
 import { dispatch } from '../core/dispatch.js';
@@ -13,6 +13,22 @@ const sendSchema = z.object({
   destination: z.string().regex(/^\+[1-9]\d{7,14}$/, 'Invalid E.164 number'),
   text: z.string().min(1).max(1600)
 });
+
+function serializeMessage(row: MessageRow) {
+  return {
+    client_ref: row.client_ref,
+    sender_id: row.sender_id,
+    destination: row.destination,
+    status: row.status,
+    provider: row.provider,
+    provider_message_id: row.provider_message_id,
+    attempts: row.attempts,
+    failover_used: row.failover_used,
+    last_error: row.last_error,
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
 
 export const messagesRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   fastify.post('/v1/messages', async (request, reply) => {
@@ -45,13 +61,15 @@ export const messagesRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
       if (row.destination !== input.destination || row.text !== input.text || row.sender_id !== input.sender_id) {
         return reply.status(409).send({ error: { code: 'CLIENT_REF_CONFLICT', message: 'Payload differs' } });
       }
-      return reply.status(200).send(row);
+      const log = getChildLogger(input.client_ref);
+      const finalRow = await dispatch(input.client_ref, log);
+      return reply.status(200).send(serializeMessage(finalRow));
     }
 
     const log = getChildLogger(input.client_ref);
     const finalRow = await dispatch(input.client_ref, log);
 
-    return reply.status(202).send(finalRow);
+    return reply.status(202).send(serializeMessage(finalRow));
   });
 
   fastify.get('/v1/messages/:client_ref', async (request, reply) => {
@@ -64,17 +82,7 @@ export const messagesRoutes: FastifyPluginAsync = async (fastify: FastifyInstanc
     const events = listEvents(client_ref);
     
     return reply.status(200).send({
-      client_ref: row.client_ref,
-      sender_id: row.sender_id,
-      destination: row.destination,
-      status: row.status,
-      provider: row.provider,
-      provider_message_id: row.provider_message_id,
-      attempts: row.attempts,
-      failover_used: row.failover_used,
-      last_error: row.last_error,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
+      ...serializeMessage(row),
       events
     });
   });
